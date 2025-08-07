@@ -1,4 +1,4 @@
-name: Deploy to EC2 (Docker)
+name: Deploy to EC2 (Dockerfile)
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2 with Docker
+    name: Deploy to EC2 using Dockerfile
     runs-on: ubuntu-latest
 
     steps:
@@ -29,20 +29,21 @@ jobs:
           REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
           rsync -avz --delete --exclude='.git' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${REMOTE_PATH}
 
-      - name: Build and run Docker container on EC2
+      - name: Build and run Docker container on EC2 from Dockerfile
         run: |
           REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
             cd ${REMOTE_PATH} && \
-            docker-compose down || true && \
-            docker-compose build && \
-            docker-compose up -d"
+            docker build -t my-app . && \
+            docker stop my-app || true && \
+            docker rm my-app || true && \
+            docker run -d --name my-app -p 80:80 my-app"
 
       - name: Notify success
-        run: echo "Docker deployment finished"
+        run: echo "Dockerfile build and deployment finished"
 
 # NOTES:
-# - Make sure EC2_HOST is set to the public IP or a resolvable DNS name of the EC2 instance.
-# - Requires Docker and Docker Compose installed on EC2.
+# - Ensure EC2_HOST is the public IP or DNS of your EC2 instance.
+# - Docker must be installed on EC2.
+# - Update the `docker run` command's port mapping and options to fit your app.
 # - Secrets used: EC2_HOST, EC2_USER, EC2_SSH_KEY.
-# - The ssh-keyscan step now has a timeout and clearer error output for DNS resolution issues.
