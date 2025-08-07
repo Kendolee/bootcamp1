@@ -21,7 +21,8 @@ jobs:
       - name: Ensure known_hosts has EC2 host
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -T 60 -H ${{ secrets.EC2_HOST }} 2>/dev/null >> ~/.ssh/known_hosts || \
+          (echo "Failed to resolve EC2_HOST: ${{ secrets.EC2_HOST }}" && exit 1)
 
       - name: Sync files to EC2 (rsync)
         run: |
@@ -31,7 +32,7 @@ jobs:
       - name: Build and run Docker container on EC2
         run: |
           REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
             cd ${REMOTE_PATH} && \
             docker-compose down || true && \
             docker-compose build && \
@@ -41,6 +42,7 @@ jobs:
         run: echo "Docker deployment finished"
 
 # NOTES:
+# - Make sure EC2_HOST is set to the public IP or a resolvable DNS name of the EC2 instance.
 # - Requires Docker and Docker Compose installed on EC2.
 # - Secrets used: EC2_HOST, EC2_USER, EC2_SSH_KEY.
-# - Adjust docker-compose commands if your setup differs (e.g., plain docker build/run).
+# - The ssh-keyscan step now has a timeout and clearer error output for DNS resolution issues.
