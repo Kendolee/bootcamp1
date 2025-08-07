@@ -1,0 +1,46 @@
+name: Deploy to EC2 (Docker)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy to EC2 with Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Ensure known_hosts has EC2 host
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync files to EC2 (rsync)
+        run: |
+          REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
+          rsync -avz --delete --exclude='.git' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${REMOTE_PATH}
+
+      - name: Build and run Docker container on EC2
+        run: |
+          REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
+            cd ${REMOTE_PATH} && \
+            docker-compose down || true && \
+            docker-compose build && \
+            docker-compose up -d"
+
+      - name: Notify success
+        run: echo "Docker deployment finished"
+
+# NOTES:
+# - Requires Docker and Docker Compose installed on EC2.
+# - Secrets used: EC2_HOST, EC2_USER, EC2_SSH_KEY.
+# - Adjust docker-compose commands if your setup differs (e.g., plain docker build/run).
