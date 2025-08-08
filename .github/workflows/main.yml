@@ -48,7 +48,7 @@ jobs:
             docker build -t my-app . && \
             docker stop my-app || true && \
             docker rm my-app || true && \
-            docker run -d --name my-app -p 80:8089 my-app"
+            docker run -d --name my-app -p 8089:8089 my-app"
 
       - name: Notify success
         run: echo "Dockerfile build and deployment finished"
