@@ -16,8 +16,7 @@ jobs:
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: |
-            ${{ secrets.EC2_SSH_KEY }}
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Ensure known_hosts has EC2 host
         run: |
@@ -25,9 +24,16 @@ jobs:
           ssh-keyscan -T 60 -H ${{ secrets.EC2_HOST }} 2>/dev/null >> ~/.ssh/known_hosts || \
           (echo "Failed to resolve EC2_HOST: ${{ secrets.EC2_HOST }}" && exit 1)
 
-      - name: Test SSH connection
+      - name: Debug SSH key and user
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful'"
+          echo "Using SSH user: ${{ secrets.EC2_USER }}"
+          echo "Checking if private key is loaded..."
+          ssh-add -l
+
+      - name: Test SSH connection (verbose)
+        run: |
+          ssh -vvv -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful'" || \
+          (echo "SSH connection failed. Check that EC2_SSH_KEY matches the EC2_USER and is added to the instance's authorized_keys." && exit 1)
 
       - name: Sync files to EC2 (rsync)
         run: |
@@ -48,7 +54,6 @@ jobs:
         run: echo "Dockerfile build and deployment finished"
 
 # NOTES:
-# - Added a step to test SSH connectivity before syncing files.
-# - Added `-e "ssh -o StrictHostKeyChecking=no"` to rsync to avoid host key issues.
-# - Ensure EC2_SSH_KEY is a valid private key with correct permissions on the EC2 instance.
-# - Ensure EC2_USER matches the SSH username for the key used.
+# - Added verbose SSH output for easier troubleshooting.
+# - Added a debug step to confirm SSH key is loaded and matches EC2_USER.
+# - If SSH still fails, verify that the EC2 instance's authorized_keys contains the public key for EC2_SSH_KEY and that the security group allows SSH from GitHub Actions runners.
