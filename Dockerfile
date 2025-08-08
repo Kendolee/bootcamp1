@@ -1,15 +1,17 @@
-# use the official Nginx image from docker hub
+# Use Node.js image
+FROM node:18-alpine
 
-FROM nginx:alpine
+# Set working directory
+WORKDIR /app
 
-# copy the website files to the Nginx folder
+# Copy all HTML files and assets
+COPY templatemo_589_lugx_gaming/ ./public/
 
-COPY . /usr/share/nginx/html
+# Install a simple static file server
+RUN npm install -g serve
 
-# Expose port 80 for the web server
-
+# Expose port 80
 EXPOSE 80
 
-# start nginx when the container runs
-
-CMD ["nginx", "-g", "daemon off;"]
+# Serve files from public directory
+CMD ["serve", "-s", "public", "-l", "80"]
