@@ -8,7 +8,7 @@ COPY . /usr/share/nginx/html
 
 # Expose port 80 for the web server
 
-EXPOSE 8080
+EXPOSE 8089
 
 # start nginx when the container runs
 
