@@ -16,7 +16,8 @@ jobs:
       - name: Set up SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          ssh-private-key: |
+            ${{ secrets.EC2_SSH_KEY }}
 
       - name: Ensure known_hosts has EC2 host
         run: |
@@ -24,10 +25,14 @@ jobs:
           ssh-keyscan -T 60 -H ${{ secrets.EC2_HOST }} 2>/dev/null >> ~/.ssh/known_hosts || \
           (echo "Failed to resolve EC2_HOST: ${{ secrets.EC2_HOST }}" && exit 1)
 
+      - name: Test SSH connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful'"
+
       - name: Sync files to EC2 (rsync)
         run: |
           REMOTE_PATH="/home/${{ secrets.EC2_USER }}/app"
-          rsync -avz --delete --exclude='.git' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${REMOTE_PATH}
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" --exclude='.git' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${REMOTE_PATH}
 
       - name: Build and run Docker container on EC2 from Dockerfile
         run: |
@@ -43,7 +48,7 @@ jobs:
         run: echo "Dockerfile build and deployment finished"
 
 # NOTES:
-# - Ensure EC2_HOST is the public IP or DNS of your EC2 instance.
-# - Docker must be installed on EC2.
-# - Update the `docker run` command's port mapping and options to fit your app.
-# - Secrets used: EC2_HOST, EC2_USER, EC2_SSH_KEY.
+# - Added a step to test SSH connectivity before syncing files.
+# - Added `-e "ssh -o StrictHostKeyChecking=no"` to rsync to avoid host key issues.
+# - Ensure EC2_SSH_KEY is a valid private key with correct permissions on the EC2 instance.
+# - Ensure EC2_USER matches the SSH username for the key used.
